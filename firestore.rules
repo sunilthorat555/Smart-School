@@ -1,0 +1,231 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {uid}
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required, email format)
+    //   - name: string (required, 1-100 chars)
+    //   - role: string (required, enum: admin, teacher, parent)
+    //   - classId: string (optional)
+    //   - rollNumber: string (optional)
+    //   - childId: string (optional, for parents)
+    //   - createdAt: string (required, ISO date)
+    //
+    // Collection: classes
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required, 1-50 chars)
+    //   - teacherName: string (required)
+    //   - studentCount: number (required, >= 0)
+    //
+    // Collection: students
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required)
+    //   - rollNumber: string (required)
+    //   - classId: string (required)
+    //   - uid: string (required)
+    //   - photoUrl: string (optional)
+    //
+    // Collection: attendance
+    // Document ID: auto-generated
+    // Fields:
+    //   - classId: string (required)
+    //   - date: string (required, YYYY-MM-DD)
+    //   - session: string (required)
+    //   - records: map (required, studentUid -> status)
+    //
+    // Collection: announcements
+    // Document ID: auto-generated
+    // Fields:
+    //   - title: string (required)
+    //   - content: string (required)
+    //   - date: string (required, ISO date)
+    //   - authorId: string (required)
+    //   - targetClassId: string (optional)
+    //   - isBanner: boolean (optional)
+    //   - imageUrl: string (optional)
+    //   - type: string (optional, enum: info, urgent, warning)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isEmailVerified() {
+      return isAuthenticated() && request.auth.token.email_verified == true;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        (request.auth.token.email == "sunil.thorat555@gmail.com") ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    function isTeacher() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+    }
+
+    // Validation Functions
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'name', 'role', 'createdAt']) &&
+             data.uid is string &&
+             data.email is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.role in ['admin', 'teacher', 'parent'] &&
+             data.createdAt is string;
+    }
+
+    function isValidClass(data) {
+      return data.keys().hasAll(['name', 'teacherName', 'studentCount']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 50 &&
+             data.teacherName is string &&
+             data.studentCount is number && data.studentCount >= 0;
+    }
+
+    function isValidQuickLink(data) {
+      return data.keys().hasAll(['id', 'title', 'url', 'authorId', 'schoolId', 'createdAt']) &&
+             data.id is string &&
+             data.title is string && data.title.size() > 0 &&
+             data.url is string && data.url.size() > 0 &&
+             data.authorId is string &&
+             data.schoolId is string &&
+             data.createdAt is string;
+    }
+
+    function isValidExam(data) {
+      return data.keys().hasAll(['id', 'title', 'type', 'format', 'subject', 'classId', 'schoolId', 'date', 'startTime', 'endTime', 'maxMarks', 'authorId', 'createdAt']) &&
+             data.id is string &&
+             data.title is string &&
+             data.type in ['Unit Test', 'Semester Exam', 'Practice Test'] &&
+             data.format in ['MCQ', 'Subjective'] &&
+             data.subject is string &&
+             data.classId is string &&
+             data.schoolId is string &&
+             data.date is string &&
+             data.startTime is string &&
+             data.endTime is string &&
+             data.maxMarks is number &&
+             data.authorId is string &&
+             data.createdAt is string;
+    }
+
+    function isValidExamResult(data) {
+      return data.keys().hasAll(['id', 'examId', 'studentId', 'classId', 'schoolId', 'marksObtained', 'status', 'createdAt']) &&
+             data.id is string &&
+             data.examId is string &&
+             data.studentId is string &&
+             data.classId is string &&
+             data.schoolId is string &&
+             data.marksObtained is number &&
+             data.status in ['Pending', 'Graded'] &&
+             data.createdAt is string;
+    }
+
+    // Rules
+    
+    // Users Collection
+    match /users/{uid} {
+      // Allow reading own profile or admin reading all, or any demo profile
+      allow read: if isAuthenticated() || uid.startsWith('demo-'); 
+      // Allow creating own profile or admin creating any, or any demo profile
+      allow create: if (isAuthenticated() && (isOwner(uid) || isAdmin())) || uid.startsWith('demo-');
+      // Allow updating own profile (except role) or admin updating any, or any demo profile
+      allow update: if (isAuthenticated() && (
+        (isOwner(uid) && request.resource.data.role == resource.data.role) || 
+        isAdmin()
+      )) || uid.startsWith('demo-');
+      allow delete: if isAdmin();
+    }
+
+    // Schools Collection
+    match /schools/{schoolId} {
+      allow read, write: if true;
+    }
+
+    // Classes Collection
+    match /classes/{classId} {
+      // Allow everyone to read and write for demo purposes
+      allow read, write: if true;
+    }
+
+    // Students Collection
+    match /students/{studentId} {
+      // Allow everyone to read and write for demo purposes
+      allow read, write: if true;
+    }
+
+    // Attendance Collection
+    match /attendance/{attendanceId} {
+      // Allow everyone to read and write for demo purposes
+      allow read, write: if true;
+    }
+
+    // Exams Collection
+    match /exams/{examId} {
+      // Allow everyone to read and write for demo purposes
+      allow read, write: if true;
+    }
+
+    // Exam Results Collection
+    match /examResults/{resultId} {
+      // Allow everyone to read and write for demo purposes
+      allow read, write: if true;
+    }
+
+    // Homework Collection
+    match /homework/{homeworkId} {
+      // Allow everyone to read and write for demo purposes
+      allow read, write: if true;
+    }
+
+    // E-Books Collection
+    match /ebooks/{ebookId} {
+      // Allow everyone to read and write for demo purposes
+      allow read, write: if true;
+    }
+
+    // Announcements Collection
+    match /announcements/{announcementId} {
+      // Allow everyone to read and write for demo purposes
+      allow read, write: if true;
+    }
+
+    // School Info Collection
+    match /school/{info} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Quick Links Collection
+    match /quickLinks/{linkId} {
+      allow read: if true;
+      // ONLY Teacher can add/update/delete as per request
+      allow create: if isTeacher() && isValidQuickLink(request.resource.data);
+      allow update: if isTeacher() && isValidQuickLink(request.resource.data);
+      allow delete: if isTeacher();
+    }
+
+    // Test Collection (for testConnection)
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}

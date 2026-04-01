@@ -1,0 +1,8 @@
+{
+  "name": "Smart Student Attendance 001",
+  "description": "A comprehensive attendance management system for schools and colleges featuring role-based access, real-time tracking, and detailed analytics.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}

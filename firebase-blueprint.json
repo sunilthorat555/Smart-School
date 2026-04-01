@@ -1,0 +1,250 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "System user with role-based access",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "teacher", "parent"] },
+        "schoolId": { "type": "string", "description": "The school this user belongs to" },
+        "classId": { "type": "string", "description": "For teachers, the class they belong to" },
+        "childId": { "type": "string", "description": "For parents, the student ID" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "name", "role"]
+    },
+    "School": {
+      "title": "School",
+      "description": "School definition",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name"]
+    },
+    "Class": {
+      "title": "Class",
+      "description": "A school class or section",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "teacherId": { "type": "string", "description": "Primary teacher for this class" },
+        "studentCount": { "type": "number" }
+      },
+      "required": ["id", "name", "schoolId"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Student record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "rollNumber": { "type": "string" },
+        "classId": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "parentEmail": { "type": "string", "format": "email" },
+        "parentPhone": { "type": "string" }
+      },
+      "required": ["id", "name", "rollNumber", "classId", "schoolId"]
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "description": "Daily attendance record for a class session",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "classId": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "sessionId": { "type": "string", "enum": ["morning", "afternoon", "subject"] },
+        "sessionName": { "type": "string" },
+        "records": {
+          "type": "object",
+          "description": "Map of studentId to status (present, absent, late)"
+        },
+        "markedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "date", "classId", "schoolId", "sessionId", "records"]
+    },
+    "Announcement": {
+      "title": "Announcement",
+      "description": "School or class-wide announcements",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "schoolId": { "type": "string" },
+        "targetClassId": { "type": "string", "description": "Optional: target specific class" },
+        "authorId": { "type": "string" }
+      },
+      "required": ["id", "title", "content", "date", "authorId", "schoolId"]
+    },
+    "Exam": {
+      "title": "Exam",
+      "description": "Scheduled examination for a class",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "type": { "type": "string", "enum": ["Unit Test", "Semester Exam", "Practice Test"] },
+        "format": { "type": "string", "enum": ["MCQ", "Subjective"] },
+        "subject": { "type": "string" },
+        "classId": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "startTime": { "type": "string", "format": "date-time" },
+        "endTime": { "type": "string", "format": "date-time" },
+        "maxMarks": { "type": "number" },
+        "questions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "question": { "type": "string" },
+              "options": { "type": "array", "items": { "type": "string" } },
+              "correctOptionIndex": { "type": "number" },
+              "marks": { "type": "number" }
+            }
+          }
+        },
+        "questionPaperUrl": { "type": "string" },
+        "authorId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "type", "format", "subject", "classId", "schoolId", "date", "startTime", "endTime", "maxMarks", "authorId"]
+    },
+    "ExamResult": {
+      "title": "ExamResult",
+      "description": "Result of an exam for a specific student",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "examId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "classId": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "marksObtained": { "type": "number" },
+        "answers": { "type": "array", "items": { "type": "number" } },
+        "answerSheetUrls": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string", "enum": ["Pending", "Graded"] },
+        "remarks": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "examId", "studentId", "classId", "schoolId", "marksObtained", "status", "createdAt"]
+    },
+    "Homework": {
+      "title": "Homework",
+      "description": "Homework assignment for a class",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "classId": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "subject": { "type": "string" },
+        "dueDate": { "type": "string", "format": "date" },
+        "pdfUrl": { "type": "string" },
+        "pdfName": { "type": "string" },
+        "authorId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "description", "classId", "schoolId", "subject", "dueDate", "authorId", "createdAt"]
+    },
+    "EBook": {
+      "title": "EBook",
+      "description": "Electronic book or PDF resource",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "subject": { "type": "string" },
+        "classId": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "pdfUrl": { "type": "string" },
+        "pdfName": { "type": "string" },
+        "authorId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "subject", "pdfUrl", "pdfName", "authorId", "createdAt", "schoolId"]
+    },
+    "SchoolInfo": {
+      "title": "SchoolInfo",
+      "description": "General information about the school",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "mission": { "type": "string" },
+        "vision": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "contact": {
+          "type": "object",
+          "properties": {
+            "address": { "type": "string" },
+            "phone": { "type": "string" },
+            "email": { "type": "string" },
+            "website": { "type": "string" },
+            "hours": { "type": "string" }
+          }
+        },
+        "stats": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": { "type": "string" },
+              "value": { "type": "string" },
+              "icon": { "type": "string" },
+              "color": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "QuickLink": {
+      "title": "QuickLink",
+      "description": "Social media or quick links for the school",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "url": { "type": "string" },
+        "iconUrl": { "type": "string", "description": "Short image or icon URL" },
+        "authorId": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "url", "authorId", "schoolId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": { "schema": "User", "description": "User profiles" },
+    "/schools/{schoolId}": { "schema": "School", "description": "School definitions" },
+    "/classes/{classId}": { "schema": "Class", "description": "Class definitions" },
+    "/students/{studentId}": { "schema": "Student", "description": "Student records" },
+    "/attendance/{attendanceId}": { "schema": "Attendance", "description": "Attendance logs" },
+    "/announcements/{announcementId}": { "schema": "Announcement", "description": "Announcements" },
+    "/exams/{examId}": { "schema": "Exam", "description": "Exam schedules" },
+    "/examResults/{resultId}": { "schema": "ExamResult", "description": "Exam results" },
+    "/homework/{homeworkId}": { "schema": "Homework", "description": "Homework assignments" },
+    "/ebooks/{ebookId}": { "schema": "EBook", "description": "E-Books and PDF resources" },
+    "/school/{info}": { "schema": "SchoolInfo", "description": "School information" },
+    "/quickLinks/{linkId}": { "schema": "QuickLink", "description": "Quick links and social media" }
+  }
+}
